@@ -20,6 +20,7 @@ class Policy(nn.Module):
         if len(obs_shape) == 3:
             self.base = CNNBase(obs_shape[0], **base_kwargs)
         elif len(obs_shape) == 1:
+            print("Selecting mlp base")
             self.base = MLPBase(obs_shape[0], **base_kwargs)
         else:
             raise NotImplementedError
@@ -181,16 +182,20 @@ class MLPBase(NNBase):
 
         self.actor = nn.Sequential(
             init_(nn.Linear(num_inputs, hidden_size)),
-            nn.Tanh(),
+            nn.ReLU(),
             init_(nn.Linear(hidden_size, hidden_size)),
-            nn.Tanh()
+            nn.ReLU(),
+            init_(nn.Linear(hidden_size, hidden_size)),
+            nn.ReLU()
         )
 
         self.critic = nn.Sequential(
             init_(nn.Linear(num_inputs, hidden_size)),
-            nn.Tanh(),
+            nn.ReLU(),
             init_(nn.Linear(hidden_size, hidden_size)),
-            nn.Tanh()
+            nn.ReLU(),
+            init_(nn.Linear(hidden_size, hidden_size)),
+            nn.ReLU()
         )
 
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
