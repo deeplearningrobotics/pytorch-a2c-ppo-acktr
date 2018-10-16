@@ -18,8 +18,6 @@ from model import Policy
 from storage import RolloutStorage
 from utils import get_vec_normalize
 from visualize import visdom_plot
-from mlagents.envs import UnityEnvironment
-
 
 args = get_args()
 
@@ -88,11 +86,9 @@ def main():
         agent = algo.A2C_ACKTR(actor_critic, args.value_loss_coef,
                                args.entropy_coef, acktr=True)
 
-    rollouts = RolloutStorage(args.num_steps, 20,
+    rollouts = RolloutStorage(args.num_steps, args.num_processes,
                         envs.observation_space.shape, envs.action_space,
                         actor_critic.recurrent_hidden_state_size)
-
-    print(agent)
 
     obs = envs.reset()
     rollouts.obs[0].copy_(obs)
@@ -113,14 +109,9 @@ def main():
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
 
-            if args.env_name.startswith("unity"):
-                brain_info = infos['brain_info']
-                episode_rewards.append(sum(brain_info.rewards))
-
-            else:
-                for info in infos:
-                    if 'episode' in info.keys():
-                        episode_rewards.append(info['episode']['r'])
+            for info in infos:
+                if 'episode' in info.keys():
+                    episode_rewards.append(info['episode']['r'])
 
             # If done then clean the history of observations.
             masks = torch.FloatTensor([[0.0] if done_ else [1.0]
@@ -153,13 +144,13 @@ def main():
             save_model = [save_model,
                           getattr(get_vec_normalize(envs), 'ob_rms', None)]
 
-            # torch.save(save_model, os.path.join(save_path, args.env_name + ".pt"))
+            torch.save(save_model, os.path.join(save_path, args.env_name + ".pt"))
 
         total_num_steps = (j + 1) * args.num_processes * args.num_steps
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             end = time.time()
-            print("Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.2f}/{:.2f}, min/max reward {:.2f}/{:.2f}\n".
+            print("Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n".
                 format(j, total_num_steps,
                        int(total_num_steps / (end - start)),
                        len(episode_rewards),
@@ -171,13 +162,13 @@ def main():
                        value_loss, action_loss))
 
             if tensorboard_writer is not None:
-                tensorboard_writer.add_scalar("mean reward", np.mean(episode_rewards), total_num_steps)
-                tensorboard_writer.add_scalar("median reward", np.median(episode_rewards), total_num_steps)
-                tensorboard_writer.add_scalar("min reward", np.min(episode_rewards), total_num_steps)
-                tensorboard_writer.add_scalar("max reward", np.max(episode_rewards), total_num_steps)
-                tensorboard_writer.add_scalar("dist entropy", dist_entropy, total_num_steps)
-                tensorboard_writer.add_scalar("value loss", value_loss, total_num_steps)
-                tensorboard_writer.add_scalar("action loss", action_loss, total_num_steps)
+                tensorboard_writer.add_scalar("mean_reward", np.mean(episode_rewards), total_num_steps)
+                tensorboard_writer.add_scalar("median_reward", np.median(episode_rewards), total_num_steps)
+                tensorboard_writer.add_scalar("min_reward", np.min(episode_rewards), total_num_steps)
+                tensorboard_writer.add_scalar("max_reward", np.max(episode_rewards), total_num_steps)
+                tensorboard_writer.add_scalar("dist_entropy", dist_entropy, total_num_steps)
+                tensorboard_writer.add_scalar("value_loss", value_loss, total_num_steps)
+                tensorboard_writer.add_scalar("action_loss", action_loss, total_num_steps)
 
         if (args.eval_interval is not None
                 and len(episode_rewards) > 1
