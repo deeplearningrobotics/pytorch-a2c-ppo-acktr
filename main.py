@@ -61,7 +61,7 @@ def main():
     tensorboard_writer = None
     if args.tensorboard_logdir is not None:
         from tensorboardX import SummaryWriter
-        import time, os, datetime
+        import datetime
         ts_str = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d_%H-%M-%S')
         tensorboard_writer = SummaryWriter(log_dir=os.path.join(args.tensorboard_logdir, ts_str))
 
@@ -86,7 +86,7 @@ def main():
         agent = algo.A2C_ACKTR(actor_critic, args.value_loss_coef,
                                args.entropy_coef, acktr=True)
 
-    rollouts = RolloutStorage(args.num_steps, args.num_processes,
+    rollouts = RolloutStorage(args.num_steps, envs.num_envs,
                         envs.observation_space.shape, envs.action_space,
                         actor_critic.recurrent_hidden_state_size)
 
@@ -109,9 +109,14 @@ def main():
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
 
-            for info in infos:
-                if 'episode' in info.keys():
-                    episode_rewards.append(info['episode']['r'])
+            if args.env_name.startswith("unity"):
+                brain_info = infos['brain_info']
+                episode_rewards.append(sum(brain_info.rewards))
+
+            else:
+                for info in infos:
+                    if 'episode' in info.keys():
+                        episode_rewards.append(info['episode']['r'])
 
             # If done then clean the history of observations.
             masks = torch.FloatTensor([[0.0] if done_ else [1.0]
