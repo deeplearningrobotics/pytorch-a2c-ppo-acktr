@@ -38,7 +38,7 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
             _, env_file_name = env_id.split(':')
             from gym_unity.envs import UnityEnv
             print(env_file_name)
-            env = UnityEnv(env_file_name, multiagent=True, use_visual=False, no_graphics=False)
+            env = UnityWrapper(UnityEnv(env_file_name, multiagent=True, use_visual=False, no_graphics=False))
         else:
             env = gym.make(env_id)
         is_atari = hasattr(gym.envs, 'atari') and isinstance(
@@ -219,3 +219,21 @@ class VecPyTorchFrameStack(VecEnvWrapper):
 
     def close(self):
         self.venv.close()
+
+
+class UnityWrapper:
+    def __init__(self, env):
+        self.env = env
+
+    def __getattr__(self, *args):
+        return self.env.__getattribute__(*args)
+
+    @property
+    def num_envs(self):
+        return self.env._n_agents
+
+    def step_async(self, action):
+        self.obs, self.reward, self.done, self.info =  self.env.step(action.tolist())
+
+    def step_wait(self):
+        return np.asarray(self.obs), np.asarray(self.reward), self.done, self.info
