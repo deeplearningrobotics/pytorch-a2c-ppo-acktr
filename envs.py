@@ -29,16 +29,14 @@ except ImportError:
     pass
 
 
-def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
+def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, unity_path=None):
     def _thunk():
         if env_id.startswith("dm"):
             _, domain, task = env_id.split('.')
             env = dm_control2gym.make(domain_name=domain, task_name=task)
-        if env_id.startswith("unity"):
-            _, env_file_name = env_id.split(':')
+        if unity_path is not None:
             from gym_unity.envs import UnityEnv
-            print(env_file_name)
-            env = UnityWrapper(UnityEnv(env_file_name, multiagent=True, use_visual=False, no_graphics=False))
+            env = UnityWrapper(UnityEnv(unity_path, multiagent=True, use_visual=False, no_graphics=False))
         else:
             env = gym.make(env_id)
         is_atari = hasattr(gym.envs, 'atari') and isinstance(
@@ -54,7 +52,7 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
             env = AddTimestep(env)
 
         # Unity envs do not support OpenAI monitors.
-        if log_dir is not None and not env_id.startswith("unity"):
+        if log_dir is not None and unity_path is None:
             env = bench.Monitor(env, os.path.join(log_dir, str(rank)),
                                 allow_early_resets=allow_early_resets)
 
@@ -71,10 +69,10 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
     return _thunk
 
 def make_vec_envs(env_name, seed, num_processes, gamma, log_dir, add_timestep,
-                  device, allow_early_resets, num_frame_stack=None):
+                  device, allow_early_resets, num_frame_stack=None, unity_path=None):
     # Unity envs have multithreading built in.
-    if env_name.startswith("unity"):
-        envs = make_env(env_name, seed, 0, log_dir, add_timestep, allow_early_resets)()
+    if unity_path is not None:
+        envs = make_env(env_name, seed, 0, log_dir, add_timestep, allow_early_resets, unity_path)()
     else:
         envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets)
                 for i in range(num_processes)]

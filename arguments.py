@@ -65,6 +65,8 @@ def get_args():
                         help='port to run the server on (default: 8097)')
     parser.add_argument('--tensorboard-logdir', default=None,
                         help='logs to tensorboard in the specified directory')
+    parser.add_argument('--unity-path', default=None,
+                        help='logs to tensorboard in the specified directory')
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()

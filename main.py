@@ -66,7 +66,7 @@ def main():
         tensorboard_writer = SummaryWriter(log_dir=os.path.join(args.tensorboard_logdir, ts_str))
 
     envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
-                        args.gamma, args.log_dir, args.add_timestep, device, False)
+                        args.gamma, args.log_dir, args.add_timestep, device, False, unity_path=args.unity_path)
 
     actor_critic = Policy(envs.observation_space.shape, envs.action_space,
         base_kwargs={'recurrent': args.recurrent_policy})
@@ -109,9 +109,9 @@ def main():
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
 
-            if args.env_name.startswith("unity"):
+            if args.unity_path is not None:
                 brain_info = infos['brain_info']
-                episode_rewards.append(sum(brain_info.rewards))
+                episode_rewards.extend(brain_info.rewards)
 
             else:
                 for info in infos:
@@ -149,13 +149,13 @@ def main():
             save_model = [save_model,
                           getattr(get_vec_normalize(envs), 'ob_rms', None)]
 
-            # torch.save(save_model, os.path.join(save_path, args.env_name + ".pt"))
+            torch.save(save_model, os.path.join(save_path, args.env_name + ".pt"))
 
         total_num_steps = (j + 1) * args.num_processes * args.num_steps
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             end = time.time()
-            print("Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.1f}/{:.1f}, min/max reward {:.1f}/{:.1f}\n".
+            print("Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.3f}/{:.3f}, min/max reward {:.3f}/{:.3f}\n".
                 format(j, total_num_steps,
                        int(total_num_steps / (end - start)),
                        len(episode_rewards),
