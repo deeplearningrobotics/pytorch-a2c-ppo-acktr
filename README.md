@@ -115,6 +115,14 @@ python main.py --env-name "Reacher-v2" --algo ppo --use-gae --vis-interval 1  --
 
 ACKTR requires some modifications to be made specifically for MuJoCo. But at the moment, I want to keep this code as unified as possible. Thus, I'm going for better ways to integrate it into the codebase.
 
+### Unity
+
+#### PPO
+
+```bash
+--env-name Reacher --unity-path "path/to/env/Reacher.x86_64" --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 1 --num-processes 1 --num-steps 128 --num-mini-batch 1 --vis-interval 1 --log-interval 1
+```
+
 ## Enjoy
 
 Load a pretrained model from [my Google Drive](https://drive.google.com/open?id=0Bw49qC_cgohKS3k2OWpyMWdzYkk).
