@@ -1,4 +1,4 @@
-import os
+import os, time
 
 import gym
 import numpy as np
@@ -36,7 +36,7 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, unit
             env = dm_control2gym.make(domain_name=domain, task_name=task)
         if unity_path is not None:
             from gym_unity.envs import UnityEnv
-            env = UnityWrapper(UnityEnv(unity_path, multiagent=True, use_visual=False, no_graphics=False))
+            env = UnityEnvWrapper(UnityEnv(unity_path, worker_id=rank, multiagent=True, use_visual=False, no_graphics=False))
         else:
             env = gym.make(env_id)
         is_atari = hasattr(gym.envs, 'atari') and isinstance(
@@ -70,17 +70,21 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, unit
 
 def make_vec_envs(env_name, seed, num_processes, gamma, log_dir, add_timestep,
                   device, allow_early_resets, num_frame_stack=None, unity_path=None):
-    # Unity envs have multithreading built in.
-    if unity_path is not None:
-        envs = make_env(env_name, seed, 0, log_dir, add_timestep, allow_early_resets, unity_path)()
-    else:
-        envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets)
-                for i in range(num_processes)]
+    # # Unity envs have multithreading built in.
+    # if unity_path is not None:
+    envs = make_env(env_name, seed, 0, log_dir, add_timestep, allow_early_resets, unity_path)()
+    # else:
+    # envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets, unity_path)
+    #         for i in range(num_processes)]
+    #
+    # if len(envs) > 0:
+    #     envs = SubprocVecEnv(envs)
+    #     if envs.num_envs != len(envs.remotes):
+    #         envs = FlattenAsyncEnvWrapper(envs)
+    # else:
+    #     envs = DummyVecEnv(envs)
 
-        if len(envs) > 1:
-            envs = SubprocVecEnv(envs)
-        else:
-            envs = DummyVecEnv(envs)
+
 
     if len(envs.observation_space.shape) == 1:
         if gamma is None:
@@ -94,6 +98,8 @@ def make_vec_envs(env_name, seed, num_processes, gamma, log_dir, add_timestep,
         envs = VecPyTorchFrameStack(envs, num_frame_stack, device)
     elif len(envs.observation_space.shape) == 3:
         envs = VecPyTorchFrameStack(envs, 4, device)
+
+
 
     return envs
 
@@ -219,7 +225,7 @@ class VecPyTorchFrameStack(VecEnvWrapper):
         self.venv.close()
 
 
-class UnityWrapper:
+class UnityEnvWrapper:
     def __init__(self, env):
         self.env = env
 
@@ -230,8 +236,47 @@ class UnityWrapper:
     def num_envs(self):
         return self.env._n_agents
 
+    def step(self, action):
+
+        obs, reward, done, info = self.env.step(action.tolist())
+        info = info['brain_info'].rewards
+        print("mean: " + str(np.mean(action)))
+        print("var: " + str(np.var(action)))
+        #print(np.max(info)*100)
+        return obs, reward, done, info
+
     def step_async(self, action):
-        self.obs, self.reward, self.done, self.info =  self.env.step(action.tolist())
+        print("mean: " + str(np.mean(action)))
+        print("var: " + str(np.var(action)))
+        self.obs, self.reward, self.done, self.info = self.env.step(action.tolist())
 
     def step_wait(self):
         return np.asarray(self.obs), np.asarray(self.reward), self.done, self.info
+
+
+class FlattenAsyncEnvWrapper:
+    def __init__(self, env):
+        self.env = env
+        self.num_envs = env.num_envs
+
+    def __getattr__(self, *args):
+        return self.env.__getattribute__(*args)
+
+    # @property
+    # def num_envs(self):
+    #     return self.env.nenvs
+
+    def reshape_obs(self, input):
+        return np.reshape(input, (self.num_envs,) + self.observation_space.shape)
+
+    def step_wait(self):
+        obs, rews, dones, infos = self.env.step_wait()
+        return self.reshape_obs(obs), rews.flatten(), dones.flatten(), infos
+
+    def reset(self):
+        obs = self.env.reset()
+        return self.reshape_obs(obs)
+
+    def reset_task(self):
+        obs = self.env.reset_task()
+        return self.reshape_obs(obs)

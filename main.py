@@ -110,8 +110,14 @@ def main():
             obs, reward, done, infos = envs.step(action)
 
             if args.unity_path is not None:
-                brain_info = infos['brain_info']
-                episode_rewards.extend(brain_info.rewards)
+                if isinstance(infos, tuple):
+                    for info in infos:
+                        #brain_info = info['brain_info']
+                        episode_rewards.extend(info)
+                        #print(np.max(info)*100)
+                else:
+                    brain_info = infos['brain_info']
+                    episode_rewards.extend(brain_info.rewards)
 
             else:
                 for info in infos:
@@ -155,7 +161,7 @@ def main():
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             end = time.time()
-            print("Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.3f}/{:.3f}, min/max reward {:.3f}/{:.3f}\n".
+            print("Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.6f}/{:.6f}, min/max reward {:.6f}/{:.6f}\n".
                 format(j, total_num_steps,
                        int(total_num_steps / (end - start)),
                        len(episode_rewards),
