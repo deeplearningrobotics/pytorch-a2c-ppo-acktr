@@ -138,18 +138,18 @@ class CNNBase(NNBase):
         init_ = lambda m: init(m,
             nn.init.orthogonal_,
             lambda x: nn.init.constant_(x, 0),
-            nn.init.calculate_gain('relu'))
+            nn.init.calculate_gain('ELU'))
 
         self.main = nn.Sequential(
             init_(nn.Conv2d(num_inputs, 32, 8, stride=4)),
-            nn.ReLU(),
+            nn.ELU(),
             init_(nn.Conv2d(32, 64, 4, stride=2)),
-            nn.ReLU(),
+            nn.ELU(),
             init_(nn.Conv2d(64, 32, 3, stride=1)),
-            nn.ReLU(),
+            nn.ELU(),
             Flatten(),
             init_(nn.Linear(32 * 7 * 7, hidden_size)),
-            nn.ReLU()
+            nn.ELU()
         )
 
         init_ = lambda m: init(m,
@@ -182,20 +182,20 @@ class MLPBase(NNBase):
 
         self.actor = nn.Sequential(
             init_(nn.Linear(num_inputs, hidden_size)),
-            nn.ReLU(),
+            nn.ELU(),
             init_(nn.Linear(hidden_size, hidden_size)),
-            nn.ReLU(),
+            nn.ELU(),
             init_(nn.Linear(hidden_size, hidden_size)),
-            nn.ReLU()
+            nn.ELU()
         )
 
         self.critic = nn.Sequential(
             init_(nn.Linear(num_inputs, hidden_size)),
-            nn.ReLU(),
+            nn.ELU(),
             init_(nn.Linear(hidden_size, hidden_size)),
-            nn.ReLU(),
+            nn.ELU(),
             init_(nn.Linear(hidden_size, hidden_size)),
-            nn.ReLU()
+            nn.ELU()
         )
 
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
