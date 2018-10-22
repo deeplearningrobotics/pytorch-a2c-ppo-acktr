@@ -47,6 +47,8 @@ self.critic = nn.Sequential(
 	
 **% of maximum reward:** 98.8235271435
 
+**Number of timesteps trained:** 800'000
+
 ![Results](res.png)
 
 ## Improvements
