@@ -20,6 +20,8 @@ from utils import get_vec_normalize
 from visualize import visdom_plot
 
 args = get_args()
+#os.environ["CUDA_VISIBLE_DEVICES"]="1"
+
 
 assert args.algo in ['a2c', 'ppo', 'acktr']
 if args.recurrent_policy:
@@ -94,11 +96,18 @@ def main():
     rollouts.obs[0].copy_(obs)
     rollouts.to(device)
 
-    episode_rewards = deque(maxlen=10)
+    done = None
+
+    episode_rewards = deque(maxlen=100)
+
+    tennis_reward = [[] for x in range(36)]
 
     start = time.time()
     for j in range(num_updates):
         for step in range(args.num_steps):
+            if done is not None and all(done):
+                obs = envs.reset()
+                rollouts.obs[step].copy_(obs)
             # Sample actions
             with torch.no_grad():
                 value, action, action_log_prob, recurrent_hidden_states = actor_critic.act(
@@ -107,11 +116,27 @@ def main():
                         rollouts.masks[step])
 
             # Obser reward and next obs
+
             obs, reward, done, infos = envs.step(action)
+
+            for ix, r in enumerate(reward):
+                tennis_reward[ix].append(r)
 
             if args.unity_path is not None:
                 brain_info = infos['brain_info']
-                episode_rewards.extend(brain_info.rewards)
+                sums = list()
+                for ix,d in enumerate(done):
+
+                    if d:
+                        sums.append(sum(tennis_reward[ix]))
+                        #print("Episode length: " + str(len(tennis_reward[ix])))
+                        tennis_reward[ix] = list()
+
+                sums_max = sorted(sums, reverse=True)[:int(len(sums)/2)]
+
+                episode_rewards.extend(sums_max)
+
+
 
             else:
                 for info in infos:
@@ -155,7 +180,8 @@ def main():
 
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             end = time.time()
-            print("Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.3f}/{:.3f}, min/max reward {:.3f}/{:.3f}\n".
+            print(sorted(episode_rewards, reverse=True))
+            print("Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.12f}/{:.12f}, min/max reward {:.12f}/{:.12f}\n".
                 format(j, total_num_steps,
                        int(total_num_steps / (end - start)),
                        len(episode_rewards),
@@ -165,6 +191,7 @@ def main():
                        np.max(episode_rewards),
                        dist_entropy,
                        value_loss, action_loss))
+
 
             if tensorboard_writer is not None:
                 tensorboard_writer.add_scalar("mean_reward", np.mean(episode_rewards), total_num_steps)

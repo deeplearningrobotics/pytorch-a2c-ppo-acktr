@@ -36,7 +36,7 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, unit
             env = dm_control2gym.make(domain_name=domain, task_name=task)
         if unity_path is not None:
             from gym_unity.envs import UnityEnv
-            env = UnityWrapper(UnityEnv(unity_path, multiagent=True, use_visual=False, no_graphics=False))
+            env = UnityWrapper(UnityEnv(unity_path, multiagent=True, use_visual=False, no_graphics=True))
         else:
             env = gym.make(env_id)
         is_atari = hasattr(gym.envs, 'atari') and isinstance(
@@ -82,11 +82,11 @@ def make_vec_envs(env_name, seed, num_processes, gamma, log_dir, add_timestep,
         else:
             envs = DummyVecEnv(envs)
 
-    if len(envs.observation_space.shape) == 1:
-        if gamma is None:
-            envs = VecNormalize(envs, ret=False)
-        else:
-            envs = VecNormalize(envs, gamma=gamma)
+    # if len(envs.observation_space.shape) == 1:
+    #     if gamma is None:
+    #         envs = VecNormalize(envs, ret=False)
+    #     else:
+    #         envs = VecNormalize(envs, gamma=gamma)
 
     envs = VecPyTorch(envs, device)
 
