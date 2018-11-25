@@ -146,4 +146,9 @@ use a range of `0.2-0.4`.
 
 Maybe batch normalization can help in improving stability.
 
+### Training
+
+Adams optimizer can be notorious for degenerating performance over time. Other optimizers could be tried to see if 
+convergence improves.
+
 
