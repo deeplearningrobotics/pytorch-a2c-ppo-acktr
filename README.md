@@ -119,8 +119,16 @@ ACKTR requires some modifications to be made specifically for MuJoCo. But at the
 
 #### PPO
 
+##### Reacher
+
 ```bash
---env-name Reacher --unity-path "path/to/env/Reacher.x86_64" --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 1 --num-processes 1 --num-steps 128 --num-mini-batch 1 --vis-interval 1 --log-interval 1
+python main.py --env-name Reacher --unity-path "path/to/env/Reacher.x86_64" --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 1 --num-processes 1 --num-steps 128 --num-mini-batch 1 --vis-interval 1 --log-interval 1
+```
+
+##### Tennis
+
+```bash
+python main.py --env-name Tennis --unity-path "path/to/env/Tennis.x86_64" --algo ppo --use-gae --lr 2.5e-3 --clip-param 0.1 --value-loss-coef 1 --num-processes 1 --ppo-epoch 10 --num-steps 512 --num-mini-batch 1 --vis-interval 1 --log-interval 1 --tensorboard-logdir trained_models/tboard --save-dir ""
 ```
 
 ## Enjoy

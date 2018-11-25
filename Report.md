@@ -1,55 +1,44 @@
-# Project 2: Continuous Control
+# Project 4: Collaboration and Competition
 
 ## Environment: Reacher
-**[Copied from the Udacity Environment description:](https://classroom.udacity.com/nanodegrees/nd893/parts/286e7d2c-e00c-4146-a5f2-a490e0f23eda/modules/089d6d51-cae8-4d4b-84c6-9bbe58b8b869/lessons/5b822b1d-5c89-4fd5-9b52-a02ddcfd3385/project)**
+**[Copied from the Udacity Environment description:](https://classroom.udacity.com/nanodegrees/nd893/parts/ec710e48-f1c5-4f1c-82de-39955d168eaa/modules/89b85bd0-0add-4548-bce9-3747eb099e60/lessons/3cf5c0c4-e837-4fe6-8071-489dcdb3ab3e/concepts/da65c741-cdeb-4f34-bb56-d8977385596e)**
 
-In this environment, a double-jointed arm can move to target locations. A reward of +0.1 is provided for each step that the agent's hand is in the goal location.
+In this environment, two agents control rackets to bounce a ball over a net. If an agent hits the ball over the net, it receives a reward of +0.1. If an agent lets a ball hit the ground or hits the ball out of bounds, it receives a reward of -0.01. Thus, the goal of each agent is to keep the ball in play.
 
-The observation space consists of 33 variables corresponding to position, rotation, velocity, and angular velocities of the arm. Each action is a vector with four numbers, corresponding to torque applicable to two joints. Every entry in the action vector should be a number between -1 and 1.
+The observation space consists of 8 variables corresponding to the position and velocity of the ball and racket. Each agent receives its own, local observation. Two continuous actions are available, corresponding to movement toward (or away from) the net, and jumping.
 
-Note that Udacities math and documentation seems to be broken:
-  * Udacity claims that the environment awards a reward of 0.1 each step the agent is at its goal. This is incorrect. 
-  The agent gets a reward between 0.01 and 0.04 per step dependant on how close to the goal it is if it is reasonably close. 
-  It gets 0.0 else.
-  * Udacity convoluted the reward goal by combining disconnected metrics. Their goal is 30 rewards over 1000 steps (which
-  is also not properly documented(!!!)). So running the algorithm for longer would invalidate all previous measurements.
-  This approach is therefore very questionable. **The correct approach is to consider reward per agent per step.** 
-  So basic math (30/1000 = 0.03) leads to the conclusion that the correct metric should be 0.03 reward per step per agent over 100 episodes,
-  which is what is used in this report that strives for correctness.
+The task is episodic, and in order to solve the environment, your agents must get an average score of +0.5 (over 100 consecutive episodes, after taking the maximum over both agents). Specifically,
 
-We consider the environment as solved if it reaches 0.03 reward per step per agent over 100 episodes 
+After each episode, we add up the rewards that each agent received (without discounting), to get a score for each agent. This yields 2 (potentially different) scores. We then take the maximum of these 2 scores.
+This yields a single score for each episode.
+The environment is considered solved, when the average (over 100 episodes) of those scores is at least +0.5.
 
 ## Algorithm
 
-PPO from this repository was used.
+PPO was used.
 
 ### Hyperparameters
 
-**Learning Rate:** 2.5e-4
+**Learning Rate:** 2.5e-3
 
 **Policy Clipping Rate:** 0.1
 
 **Value Loss Coefficient:**: 1.0
 
-**Episode Lenght:** 128
-
-No minibatching is used, which is also not necessary as the 20 agents running in parallel provide uncorrelated
-samples already.
+**Episode Lenght:** 512
 
 All other hyperparameters are left as their default.
 
 ### Execution
 
-Command line to run the experiment: `python main.py --env-name Reacher --unity-path "Reacher.x86_64" --algo ppo --use-gae --lr 2.5e-4 --clip-param 0.1 --value-loss-coef 1 --num-processes 1 --num-steps 128 --num-mini-batch 1 --vis-interval 1 --log-interval 1 --tensorboard-logdir trained_models/tboard --save-dir ""`
+Command line to run the experiment: `python main.py --env-name Tennis --unity-path "Tennis_Linux/Tennis.x86_64" --algo ppo --use-gae --lr 2.5e-3 --clip-param 0.1 --value-loss-coef 1 --num-processes 1 --ppo-epoch 10 --num-steps 512 --num-mini-batch 1 --vis-interval 1 --log-interval 1 --tensorboard-logdir trained_models/tboard --save-dir ""`
 
 Note that the proper environment is already part of this repository.
 
 ### Neural network
 
-Using ELU yielded significantly better performance than RELU. Batch normalization did not improve results.
-
 ```python
-hidden_size=64
+hidden_size=32
 
 self.actor = nn.Sequential(
     init_(nn.Linear(num_inputs, hidden_size)),
@@ -72,49 +61,89 @@ self.critic = nn.Sequential(
 
 ## Result
 
+Note that the results are extremely unstable and the network deteriorates over time again.
+
 ### Metrics over 100 episodes: 
 
-**Median reward:** 0.0395294109
+**Mean reward:** Peak performance of 1.85 mean reward over 100 episodes was possible.
 	
-**% of maximum reward:** 98.8235271435
-
-**Number of timesteps trained:** 800'000
+**Number of timesteps trained:** 3.2 Million in total, peak performance reached after 0.5 Million timestamps.
 
 ### Graphs
 
-![Results](res.png)
+![Results](p3.png)
 
 ## Stored weights
 
-The model weights are stored in the `Reacher.pt` file in this repository.
+The model weights are stored in the `Tennis.pt` file in this repository.
 
 ## Improvements
 
-The algorithm works already almost perfectly. The drops in reward come when the agent randomly resets which
-resets the robot arms position and rotates the
-target with a different speed. See this code:
+The main issue is that results are hyper sensitive to learning rate and batch size changes. So the focus should be to 
+reach good results in a more stable way. 
 
-```C++
-public override void AgentReset()
-    {
-        pendulumA.transform.position = new Vector3(0f, -4f, 0f) + transform.position;
-        pendulumA.transform.rotation = Quaternion.Euler(180f, 0f, 0f);
-        rbA.velocity = Vector3.zero;
-        rbA.angularVelocity = Vector3.zero;
+### Learning rate and training time
 
-        pendulumB.transform.position = new Vector3(0f, -10f, 0f) + transform.position;
-        pendulumB.transform.rotation = Quaternion.Euler(180f, 0f, 0f);
-        rbB.velocity = Vector3.zero;
-        rbB.angularVelocity = Vector3.zero;
+Reducing the learning rate has been tried but did not yield an improvement over
+the observed training time. Maybe if one would train for several days good results could be observed but this was not
+possible given time constraints. The main caveat here is the low GPU and CPU utilization stemming from underutilization 
+of multiple CPU cores:
 
-        goalDegree = Random.Range(0, 360);
-        UpdateGoalPosition();
-
-        goalSize = myAcademy.goalSize;
-        goalSpeed = Random.Range(-1f, 1f) * myAcademy.goalSpeed;
-
-        goal.transform.localScale = new Vector3(goalSize, goalSize, goalSize);
-    }
+#### CPU
 ```
+top - 13:28:03 up  1:16,  3 users,  load average: 1.44, 1.90, 2.09
+Tasks: 322 total,   2 running, 227 sleeping,   0 stopped,   0 zombie
+%Cpu(s): 12.1 us,  4.8 sy,  0.0 ni, 83.1 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+KiB Mem : 32840720 total, 17404360 free,  9464764 used,  5971596 buff/cache
+KiB Swap: 39166460 total, 39166460 free,        0 used. 22578788 avail Mem 
+
+  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND     
+ 4721 pasa      20   0 4158040 104448  53220 S 116.3  0.3  78:34.52 Tennis.x86+ 
+ 4646 pasa      20   0 65.150g 1.844g 285684 R  71.8  5.9  41:23.38 python
+```
+ 
+#### GPU
+```
+pasa@pasa-wc:~$ nvidia-smi 
+Sun Nov 25 13:29:16 2018       
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 384.130                Driver Version: 384.130                   |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|===============================+======================+======================|
+|   0  GeForce GTX 108...  On   | 00000000:01:00.0  On |                  N/A |
+|  6%   54C    P0    70W / 275W |   2390MiB / 11164MiB |      3%   E. Process |
++-------------------------------+----------------------+----------------------+
+|   1  GeForce GTX 970     On   | 00000000:03:00.0 Off |                  N/A |
+|  0%   42C    P8    14W / 200W |     12MiB /  4037MiB |      0%   E. Process |
++-------------------------------+----------------------+----------------------+
+                                                                               
++-----------------------------------------------------------------------------+
+| Processes:                                                       GPU Memory |
+|  GPU       PID   Type   Process name                             Usage      |
+|=============================================================================|
+|    0      1822      G   /usr/lib/xorg/Xorg                           940MiB |
+|    0      3505      G   compiz                                       221MiB |
+|    0      4130      G   /snap/pycharm-community/99/jre64/bin/java    468MiB |
+|    0      4646      C   ...g/pytorch-a2c-ppo-acktr/venv/bin/python   565MiB |
+|    0      4721      G   ...ing/pytorch-a2c-ppo-acktr/Tennis.x86_64     3MiB |
+|    0      6637      G   ...-token=F9E85823CC93075536DF86CE386FE2AC   187MiB |
++-----------------------------------------------------------------------------+
+```
+
+It seems to me that `pytorch` does not use a lot of GPU compared to `tensorflow` but this is also due to the specific
+application.
+
+
+### Other hyperparameters
+
+A natural idea would be to reduce the clip fraction to improve algorithm stability, 
+but with `0.1` it is already very low compared that most applications 
+use a range of `0.2-0.4`. 
+
+### Neural network
+
+Maybe batch normalization can help in improving stability.
 
 
